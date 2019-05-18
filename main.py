@@ -40,7 +40,7 @@ net=Net()
 
 
 criterion=nn.MSELoss()
-optimizer=optim.SGD(net.parameters(),lr=0.0000001)
+optimizer=optim.SGD(net.parameters(),lr=0.000001)
 
 #make data
 data=np.array([[i,j,i*j] for i,j in product(range(N),range(N))])
@@ -49,6 +49,11 @@ x_train=torch.Tensor(x_train)
 y_train=torch.FloatTensor(y_train)
 x_test=torch.FloatTensor(x_test)
 y_test=torch.FloatTensor(y_test)
+if torch.cuda.is_available():
+    x_train=x_train.cuda()
+    y_train=y_train.cuda()
+    x_test=x_test.cuda()
+    y_test=y_test.cuda()
 
 lossl=[]
 for epoch in range(epochs):
