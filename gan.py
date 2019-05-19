@@ -103,9 +103,9 @@ def main():
         for i,(x, label) in enumerate(train_loader,0):
             # for k
             # sample noise minibatch z
-            z = torch.rand(x.shape)*255
+            z = torch.rand(x.shape).to(device)*255
             # update discriminator by sgd
-            loss_D = criterion_D(discriminator.forward(x), discriminator.forward(generator.forward(z)))
+            loss_D = criterion_D(discriminator.forward(x.to(device)), discriminator.forward(generator.forward(z)))
             loss_D.backward()
             discriminator.zero_grad()
             for param in discriminator.parameters():
@@ -117,7 +117,7 @@ def main():
             # TODO print loss mean
 
             # sample noise minibatch z by sgd
-            z = torch.rand(args.batchsize, imagesize, imagesize)*255
+            z = torch.rand(args.batchsize, imagesize, imagesize).to(device)*255
             # update generator
             loss_G = criterion_G(discriminator.forward(generator.forward(z)))
             loss_G.backward()
@@ -129,12 +129,12 @@ def main():
             #test
             print(
                 "t:",torch.mean(discriminator.forward(x)),
-                "f:",torch.mean((torch.rand(x.shape))),
-                "tf",torch.mean(generator(torch.rand(x.shape)*255))
+                "f:",torch.mean((torch.rand(x.shape).to(device))),
+                "tf",torch.mean(generator(torch.rand(x.shape).to(device)*255))
             )
         if not os.path.exists('output'):
             os.mkdir('output')
-        save_image((generator(torch.rand(1,imagesize,imagesize)*255)),'output/'+str(e)+'.png')
+        save_image((generator(torch.rand(1,imagesize,imagesize).to(device)*255)),'output/'+str(e)+'.png')
 
 
 if __name__ == '__main__':
