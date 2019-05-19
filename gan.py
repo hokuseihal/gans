@@ -128,7 +128,7 @@ def main():
 
             #test
             print(
-                "t:",torch.mean(discriminator.forward(x)),
+                "t:",torch.mean(discriminator.forward(x.to(device))),
                 "f:",torch.mean((torch.rand(x.shape).to(device))),
                 "tf",torch.mean(generator(torch.rand(x.shape).to(device)*255))
             )
