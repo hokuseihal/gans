@@ -73,7 +73,7 @@ def main():
     parse = argparse.ArgumentParser('My gan trainnig')
     parse.add_argument('--batchsize', type=int, default=128)
     parse.add_argument('--epoch', type=int, default=100)
-    parse.add_argument('--cuda', action='store_true', default=False)
+    parse.add_argument('--nocuda', action='store_false', default=True)
     parse.add_argument('--k', type=int, default=3)
     args = parse.parse_args()
     device = 'cuda' if torch.cuda.is_available() and args.cuda else 'cpu'
