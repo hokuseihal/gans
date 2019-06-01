@@ -8,6 +8,8 @@ from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
 import argparse
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from maxout import Maxout
 
