@@ -119,7 +119,7 @@ def main():
                 param.data+=args.lrd*param.grad.data
 
             count += 1
-            if count <= args.k:
+            if count < args.k:
                 continue
             count = 0
             # TODO print loss mean
