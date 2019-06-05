@@ -13,7 +13,7 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 from maxout import Maxout
 
-imagesize = 28
+lzsize = 1
 
 class Dloss(nn.Module):
     def __init__(self):
@@ -25,7 +25,7 @@ class Dloss(nn.Module):
         #if torch.max(x) >= 1 or torch.max(z) >= 1: raise ArithmeticError('Is it true D returns probability?')
         x = x.view(-1, 1)
         z = z.view(-1, 1)
-        return torch.sum(torch.log(x) + torch.log(1 - z)) / len(x)
+        return -torch.sum(torch.log(x) + torch.log(1 - z)) / len(x)
 
 
 class GLoss(nn.Module):
@@ -35,23 +35,38 @@ class GLoss(nn.Module):
     def forward(self, x):
         #if torch.max(z) >= 1: raise ArithmeticError('Is it true D returns probability?')
         x = x.view(-1, 1)
-        return torch.sum(torch.log(x)) / len(x)*10
+        return -torch.sum(torch.log(x)) / len(x)*10
 
 
 # network generator
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
-        self.fc1 = nn.Linear(imagesize ** 2, 32 ** 2)
-        self.fc2 = nn.Linear(32 ** 2, 32 ** 2)
-        self.fc3 = nn.Linear(32 ** 2, imagesize ** 2)
+        self.convtr2d1=nn.ConvTranspose2d(1,8,4,2)
+        self.convtr2d2=nn.ConvTranspose2d(8,4,4,2)
+        self.convtr2d3=nn.ConvTranspose2d(4,4,4,2)
+        self.convtr2d4=nn.ConvTranspose2d(4,2,4,2,4)
+        self.convtr2d5=nn.ConvTranspose2d(2,1,4,1,5)
+        self.batchnomal1=nn.BatchNorm2d(8)
+        self.batchnomal2 = nn.BatchNorm2d(4)
+        self.batchnomal3 = nn.BatchNorm2d(4)
+        self.batchnomal4 = nn.BatchNorm2d(2)
 
     def forward(self, x):
-        x = x.view(-1, imagesize ** 2)
-        x = F.relu(F.dropout(self.fc1(x)))
-        x = F.relu(F.dropout(self.fc2(x)))
-        x = F.sigmoid(self.fc3(x))*5
-        x = x.view(-1, imagesize, imagesize)
+        x = self.convtr2d1(x)
+        x=self.batchnomal1(x)
+        x=F.relu(x)
+        x=self.convtr2d2(x)
+        x=self.batchnomal2(x)
+        x=F.relu(x)
+        x=self.convtr2d3(x)
+        x=self.batchnomal3(x)
+        x=F.relu(x)
+        x=self.convtr2d4(x)
+        x=self.batchnomal4(x)
+        x=F.relu(x)
+        x=self.convtr2d5(x)
+        x=F.tanh(x)
         return x
 
 
@@ -60,15 +75,29 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
-        self.fc4 = nn.Linear(imagesize ** 2, 16 ** 2)
-        self.fc5 = nn.Linear(128, 8 ** 2)
-        self.fc6 = nn.Linear(32, 1)
+        self.conv2d1=nn.Conv2d(1,4,4,2,1)
+        self.conv2d2=nn.Conv2d(4,8,4,2,1)
+        self.conv2d3=nn.Conv2d(8,16,4,2,1)
+        self.conv2d4=nn.Conv2d(16,32,4,2,1)
+        self.conv2d5=nn.Conv2d(32,1,1)
+        self.batchnomal1=nn.BatchNorm2d(8)
+        self.batchnomal2 = nn.BatchNorm2d(16)
+        self.batchnomal3 = nn.BatchNorm2d(32)
 
     def forward(self, x):
-        x = x.view(-1, imagesize ** 2)
-        x = Maxout(2)(F.dropout(self.fc4(x)))
-        x = Maxout(2)(F.dropout(self.fc5(x)))
-        x = F.sigmoid(self.fc6(x))
+        x = self.conv2d1(x)
+        x = F.leaky_relu(x)
+        x=self.conv2d2(x)
+        x=self.batchnomal1(x)
+        x=F.leaky_relu(x)
+        x=self.conv2d3(x)
+        x=self.batchnomal2(x)
+        x=F.leaky_relu(x)
+        x=self.conv2d4(x)
+        x=self.batchnomal3(x)
+        x=F.leaky_relu(x)
+        x=self.conv2d5(x)
+        x=F.sigmoid(x)
         return x
 
 
@@ -95,8 +124,8 @@ def main():
     discriminator = Discriminator().to(device)
     criterion_D = Dloss()
     criterion_G = GLoss()
-    #optimizer_g = optim.Adam(generator.parameters())
-    #optimizer_d=optim.Adam(discriminator.parameters())
+    optimizer_g = optim.Adam(generator.parameters())
+    optimizer_d=optim.Adam(discriminator.parameters())
     # train
     # for epoch
     count = 0
@@ -109,14 +138,12 @@ def main():
             # for k
             # sample noise minibatch z
             discriminator.zero_grad()
-            z = torch.rand(x.shape).to(device)*5
+            z = torch.rand(x.shape[0],1,lzsize,lzsize).to(device)*5
             # update discriminator by sgd
             loss_D = criterion_D(discriminator.forward(x.to(device)), discriminator.forward(generator.forward(z)))
             loss_D.backward()
             lossdlist.append(loss_D)
-            #optimizer_d.step()
-            for param in discriminator.parameters():
-                param.data+=args.lrd*param.grad.data
+            optimizer_d.step()
 
             count += 1
             if count < args.k:
@@ -125,15 +152,13 @@ def main():
             # TODO print loss mean
 
             # sample noise minibatch z by sgd
-            z = torch.rand(args.batchsize, imagesize, imagesize).to(device)*5
+            z = torch.rand(args.batchsize, 1,lzsize, lzsize).to(device) * 5
             # update generator
             generator.zero_grad()
             loss_G = criterion_G(discriminator.forward(generator.forward(z)))
             loss_G.backward()
             lossglist.append(loss_G)
-            #optimizer_g.step()
-            for param in generator.parameters():
-                param.data+=args.lrg*param.grad.data
+            optimizer_g.step()
             print("e:{} {:2.1f}% loss_D:{} loss_G:{}".format(e,i*args.batchsize*100/len(train_loader.dataset),loss_D,loss_G))
 
             #test
@@ -144,7 +169,7 @@ def main():
             )
         if not os.path.exists('output'):
             os.mkdir('output')
-        save_image((generator(torch.rand(1,imagesize,imagesize).to(device)*5)),'output/'+str(e)+'.png')
+        save_image((generator(torch.rand(1, lzsize, lzsize).to(device) * 5)), 'output/' + str(e) + '.png')
     plt.plot(range(len(lossdlist)),lossdlist,label='Loss_D')
     plt.plot(range(len(lossglist)),lossglist,label='Loss_G')
     plt.xlabel('step')
