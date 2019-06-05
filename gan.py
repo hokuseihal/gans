@@ -169,7 +169,7 @@ def main():
             )
         if not os.path.exists('output'):
             os.mkdir('output')
-        save_image((generator(torch.rand(1, lzsize, lzsize).to(device) * 5)), 'output/' + str(e) + '.png')
+        save_image((generator(torch.rand(1,1, lzsize, lzsize).to(device) * 5)), 'output/' + str(e) + '.png')
     plt.plot(range(len(lossdlist)),lossdlist,label='Loss_D')
     plt.plot(range(len(lossglist)),lossglist,label='Loss_G')
     plt.xlabel('step')
