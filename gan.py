@@ -108,7 +108,7 @@ def main():
     parse.add_argument('--nocuda', action='store_false', default=True)
     parse.add_argument('--k', type=int, default=1)
     parse.add_argument('--lrg',type=float,default=0.01)
-    parse.add_argument('--lrd',type=float,default=0.00001)
+    parse.add_argument('--lrd',type=float,default=0.0001)
     args = parse.parse_args()
     device = 'cuda' if torch.cuda.is_available() and args.nocuda else 'cpu'
     # load data
@@ -124,8 +124,8 @@ def main():
     discriminator = Discriminator().to(device)
     criterion_D = Dloss()
     criterion_G = GLoss()
-    optimizer_g = optim.Adam(generator.parameters())
-    optimizer_d=optim.Adam(discriminator.parameters())
+    optimizer_g = optim.Adam(generator.parameters(),lr=args.lrg)
+    optimizer_d=optim.Adam(discriminator.parameters(),lr=args.lrd)
     # train
     # for epoch
     count = 0
