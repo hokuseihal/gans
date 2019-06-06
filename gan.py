@@ -104,10 +104,10 @@ class Discriminator(nn.Module):
 def main():
     parse = argparse.ArgumentParser('My gan trainnig')
     parse.add_argument('--batchsize', type=int, default=128)
-    parse.add_argument('--epoch', type=int, default=100)
+    parse.add_argument('--epoch', type=int, default=50)
     parse.add_argument('--nocuda', action='store_false', default=True)
     parse.add_argument('--k', type=int, default=1)
-    parse.add_argument('--lrg',type=float,default=0.01)
+    parse.add_argument('--lrg',type=float,default=0.001)
     parse.add_argument('--lrd',type=float,default=0.0001)
     args = parse.parse_args()
     device = 'cuda' if torch.cuda.is_available() and args.nocuda else 'cpu'
