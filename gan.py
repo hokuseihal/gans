@@ -11,8 +11,16 @@ import argparse
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-from maxout import Maxout
 
+
+parse = argparse.ArgumentParser('My gan trainnig')
+parse.add_argument('--batchsize', type=int, default=128)
+parse.add_argument('--epoch', type=int, default=50)
+parse.add_argument('--nocuda', action='store_false', default=True)
+parse.add_argument('--k', type=int, default=1)
+parse.add_argument('--lrg',type=float,default=0.001)
+parse.add_argument('--lrd',type=float,default=0.0001)
+args = parse.parse_args()
 lzsize = 1
 
 class Dloss(nn.Module):
@@ -25,7 +33,7 @@ class Dloss(nn.Module):
         #if torch.max(x) >= 1 or torch.max(z) >= 1: raise ArithmeticError('Is it true D returns probability?')
         x = x.view(-1, 1)
         z = z.view(-1, 1)
-        return -torch.sum(torch.log(x) + torch.log(1 - z)) / len(x)
+        return -torch.sum(torch.log(x) + torch.log(1 - z)) / args.batchsize
 
 
 class GLoss(nn.Module):
@@ -35,10 +43,10 @@ class GLoss(nn.Module):
     def forward(self, x):
         #if torch.max(z) >= 1: raise ArithmeticError('Is it true D returns probability?')
         x = x.view(-1, 1)
-        return -torch.sum(torch.log(x)) / len(x)*10
+        return torch.sum(torch.log(1-x)) /args.batchsize
 
 
-# network generator
+    # network generator
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
@@ -102,21 +110,13 @@ class Discriminator(nn.Module):
 
 
 def main():
-    parse = argparse.ArgumentParser('My gan trainnig')
-    parse.add_argument('--batchsize', type=int, default=128)
-    parse.add_argument('--epoch', type=int, default=50)
-    parse.add_argument('--nocuda', action='store_false', default=True)
-    parse.add_argument('--k', type=int, default=3)
-    parse.add_argument('--lrg',type=float,default=0.001)
-    parse.add_argument('--lrd',type=float,default=0.0001)
-    args = parse.parse_args()
     device = 'cuda' if torch.cuda.is_available() and args.nocuda else 'cpu'
     # load data
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST('../data', train=True, download=True,
                        transform=transforms.Compose([
                            transforms.ToTensor(),
-                           transforms.Lambda(lambda x:x/255*5)
+                           transforms.Lambda(lambda x:x/255)
                        ])),
         batch_size=args.batchsize, shuffle=True)
 
@@ -137,23 +137,23 @@ def main():
         for i,(x, label) in enumerate(train_loader,0):
             # for k
             # sample noise minibatch z by sgd
-            z = torch.rand(args.batchsize, 1,lzsize, lzsize).to(device) * 5
+            z = torch.rand(args.batchsize, 1,lzsize, lzsize).to(device)
             # update generator
             generator.zero_grad()
             loss_G = criterion_G(discriminator.forward(generator.forward(z)))
             loss_G.backward()
-            lossglist.append(loss_G)
             optimizer_g.step()
 
             count += 1
             if count < args.k:
                 continue
             count = 0
+            lossglist.append(loss_G)
             # TODO print loss mean
 
             # sample noise minibatch z
             discriminator.zero_grad()
-            z = torch.rand(x.shape[0],1,lzsize,lzsize).to(device)*5
+            z = torch.rand(x.shape[0],1,lzsize,lzsize).to(device)
             # update discriminator by sgd
             loss_D = criterion_D(discriminator.forward(x.to(device)), discriminator.forward(generator.forward(z)))
             loss_D.backward()
@@ -165,11 +165,11 @@ def main():
             print(
                 "t:",torch.mean(discriminator.forward(x.to(device))),
                 "f:",torch.mean((torch.rand(x.shape).to(device))),
-                "tf",torch.mean(discriminator.forward(generator(torch.rand(x.shape).to(device)*5)))
+                "tf",torch.mean(discriminator.forward(generator(torch.rand(x.shape).to(device))))
             )
         if not os.path.exists('output'):
             os.mkdir('output')
-        save_image((generator(torch.rand(1,1, lzsize, lzsize).to(device) * 5)), 'output/' + str(e) + '.png')
+        save_image((generator(torch.rand(1,1, lzsize, lzsize).to(device))), 'output/' + str(e) + '.png')
         if loss_G!=loss_G:break
     plt.plot(range(len(lossdlist)),lossdlist,label='Loss_D')
     plt.plot(range(len(lossglist)),lossglist,label='Loss_G')
