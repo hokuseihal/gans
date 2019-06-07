@@ -41,6 +41,7 @@ testloader=torch.utils.data.DataLoader(testset,batch_size=4,shuffle=False,num_wo
 classes = ('plane', 'car', 'bird', 'cat','deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 criterion=nn.CrossEntropyLoss()
 optimizer=optim.SGD(net.parameters(),lr=0.001,momentum=0.9)
+losslist=[]
 if __name__ =="__main__":
     for epoch in range(5):
         running_loss=0.2
@@ -51,6 +52,7 @@ if __name__ =="__main__":
 
             output=net(inputs)
             loss=criterion(output,labels)
+            losslist.append(loss.item())
             loss.backward()
             optimizer.step()
             #
@@ -59,4 +61,6 @@ if __name__ =="__main__":
                 print('[%d, %5d] loss: %.3f' %
                       (epoch + 1, i + 1, running_loss / 2000))
                 running_loss = 0.0
+    plt.plot(range(len(losslist)),losslist)
+    plt.savefig('loss.png')
     print("END")
