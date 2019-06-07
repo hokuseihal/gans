@@ -106,7 +106,7 @@ def main():
     parse.add_argument('--batchsize', type=int, default=128)
     parse.add_argument('--epoch', type=int, default=50)
     parse.add_argument('--nocuda', action='store_false', default=True)
-    parse.add_argument('--k', type=int, default=1)
+    parse.add_argument('--k', type=int, default=3)
     parse.add_argument('--lrg',type=float,default=0.001)
     parse.add_argument('--lrd',type=float,default=0.0001)
     args = parse.parse_args()
@@ -124,8 +124,8 @@ def main():
     discriminator = Discriminator().to(device)
     criterion_D = Dloss()
     criterion_G = GLoss()
-    optimizer_g = optim.Adam(generator.parameters(),lr=args.lrg)
-    optimizer_d=optim.Adam(discriminator.parameters(),lr=args.lrd)
+    optimizer_g = optim.Adam(generator.parameters())
+    optimizer_d=optim.Adam(discriminator.parameters())
     # train
     # for epoch
     count = 0
@@ -136,21 +136,6 @@ def main():
 
         for i,(x, label) in enumerate(train_loader,0):
             # for k
-            # sample noise minibatch z
-            discriminator.zero_grad()
-            z = torch.rand(x.shape[0],1,lzsize,lzsize).to(device)*5
-            # update discriminator by sgd
-            loss_D = criterion_D(discriminator.forward(x.to(device)), discriminator.forward(generator.forward(z)))
-            loss_D.backward()
-            lossdlist.append(loss_D)
-            optimizer_d.step()
-
-            count += 1
-            if count < args.k:
-                continue
-            count = 0
-            # TODO print loss mean
-
             # sample noise minibatch z by sgd
             z = torch.rand(args.batchsize, 1,lzsize, lzsize).to(device) * 5
             # update generator
@@ -159,6 +144,21 @@ def main():
             loss_G.backward()
             lossglist.append(loss_G)
             optimizer_g.step()
+
+            count += 1
+            if count < args.k:
+                continue
+            count = 0
+            # TODO print loss mean
+
+            # sample noise minibatch z
+            discriminator.zero_grad()
+            z = torch.rand(x.shape[0],1,lzsize,lzsize).to(device)*5
+            # update discriminator by sgd
+            loss_D = criterion_D(discriminator.forward(x.to(device)), discriminator.forward(generator.forward(z)))
+            loss_D.backward()
+            lossdlist.append(loss_D)
+            optimizer_d.step()
             print("e:{} {:2.1f}% loss_D:{} loss_G:{}".format(e,i*args.batchsize*100/len(train_loader.dataset),loss_D,loss_G))
 
             #test
