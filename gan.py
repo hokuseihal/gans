@@ -131,6 +131,9 @@ def main():
     count = 0
     lossglist=[]
     lossdlist=[]
+    tlist=[]
+    flist=[]
+    tflist=[]
     for e in range(args.epoch):
         # sample train data x
 
@@ -160,19 +163,27 @@ def main():
             lossdlist.append(loss_D)
             optimizer_d.step()
             print("e:{} {:2.1f}% loss_D:{} loss_G:{}".format(e,i*args.batchsize*100/len(train_loader.dataset),loss_D,loss_G))
-
+            t=torch.mean(discriminator.forward(x.to(device)))
+            tlist.append(t)
+            f=torch.mean((torch.rand(x.shape).to(device)))
+            flist.append(f)
+            tf=torch.mean(discriminator.forward(generator(torch.rand(x.shape).to(device))))
+            tflist.append(tf)
             #test
-            print(
-                "t:",torch.mean(discriminator.forward(x.to(device))),
-                "f:",torch.mean((torch.rand(x.shape).to(device))),
-                "tf",torch.mean(discriminator.forward(generator(torch.rand(x.shape).to(device))))
-            )
+            print("t:",t,"f:",f,"tf",tf)
         if not os.path.exists('output'):
             os.mkdir('output')
         save_image((generator(torch.rand(1,1, lzsize, lzsize).to(device))), 'output/' + str(e) + '.png')
         if loss_G!=loss_G:break
-    plt.plot(range(len(lossdlist)),lossdlist,label='Loss_D')
-    plt.plot(range(len(lossglist)),lossglist,label='Loss_G')
+    fig=plt.figure()
+    ax1=fig.add_subplot(211)
+    ax1.plot(range(len(tlist)),tlist,label='t')
+    ax1.plot(range(len(flist)),flist,label='f')
+    ax1.plot(range(len(tflist)),tflist,label='tf')
+    ax2=fig.add_subplot(211)
+    ax2.plot(range(len(lossdlist)),lossdlist,label='Loss_D')
+    ax2.plot(range(len(lossglist)),lossglist,label='Loss_G')
+
     plt.xlabel('step')
     plt.ylabel('Loss')
     plt.legend()
