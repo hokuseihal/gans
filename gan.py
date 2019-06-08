@@ -167,7 +167,7 @@ def main():
             print("e:{} {:2.1f}% loss_D:{} loss_G:{}".format(e,i*args.batchsize*100/len(train_loader.dataset),loss_D,loss_G))
             t=torch.mean(discriminator.forward(x.to(device)))
             tlist.append(t.item())
-            f=torch.mean(discriminator(torch.rand(xshape)).to(device))
+            f=torch.mean(discriminator(torch.rand(xshape).to(device)))
             flist.append(f.item())
             tf=torch.mean(discriminator.forward(generator(torch.rand(zshape)).to(device)))
             tflist.append(tf.item())
