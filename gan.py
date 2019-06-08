@@ -13,10 +13,6 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 
-
-from memory_profiler import profile
-
-
 parse = argparse.ArgumentParser('My gan trainnig')
 parse.add_argument('--batchsize', type=int, default=128)
 parse.add_argument('--epoch', type=int, default=50)
