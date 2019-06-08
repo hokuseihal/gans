@@ -13,6 +13,10 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 
+
+from memory_profiler import profile
+
+
 parse = argparse.ArgumentParser('My gan trainnig')
 parse.add_argument('--batchsize', type=int, default=128)
 parse.add_argument('--epoch', type=int, default=50)
@@ -22,6 +26,8 @@ parse.add_argument('--lrg',type=float,default=0.001)
 parse.add_argument('--lrd',type=float,default=0.0001)
 args = parse.parse_args()
 lzsize = 1
+zshape=(args.batchsize, 1, lzsize, lzsize)
+xshape=(args.batchsize,1,28,28)
 
 class Dloss(nn.Module):
     def __init__(self):
@@ -50,15 +56,15 @@ class GLoss(nn.Module):
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
-        self.convtr2d1=nn.ConvTranspose2d(1,8,4,2)
-        self.convtr2d2=nn.ConvTranspose2d(8,4,4,2)
-        self.convtr2d3=nn.ConvTranspose2d(4,4,4,2)
-        self.convtr2d4=nn.ConvTranspose2d(4,2,4,2,4)
-        self.convtr2d5=nn.ConvTranspose2d(2,1,4,1,5)
-        self.batchnomal1=nn.BatchNorm2d(8)
-        self.batchnomal2 = nn.BatchNorm2d(4)
-        self.batchnomal3 = nn.BatchNorm2d(4)
-        self.batchnomal4 = nn.BatchNorm2d(2)
+        self.convtr2d1=nn.ConvTranspose2d(1,1024,4,2)
+        self.convtr2d2=nn.ConvTranspose2d(1024,512,4,2)
+        self.convtr2d3=nn.ConvTranspose2d(512,256,4,2)
+        self.convtr2d4=nn.ConvTranspose2d(256,128,4)
+        self.convtr2d5=nn.ConvTranspose2d(128,1,4)
+        self.batchnomal1=nn.BatchNorm2d(1024)
+        self.batchnomal2 = nn.BatchNorm2d(512)
+        self.batchnomal3 = nn.BatchNorm2d(256)
+        self.batchnomal4 = nn.BatchNorm2d(128)
 
     def forward(self, x):
         x = self.convtr2d1(x)
@@ -83,14 +89,14 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
-        self.conv2d1=nn.Conv2d(1,4,4,2,1)
-        self.conv2d2=nn.Conv2d(4,8,4,2,1)
-        self.conv2d3=nn.Conv2d(8,16,4,2,1)
-        self.conv2d4=nn.Conv2d(16,32,4,2,1)
-        self.conv2d5=nn.Conv2d(32,1,1)
-        self.batchnomal1=nn.BatchNorm2d(8)
-        self.batchnomal2 = nn.BatchNorm2d(16)
-        self.batchnomal3 = nn.BatchNorm2d(32)
+        self.conv2d1=nn.Conv2d(1,128,4,2,1)
+        self.conv2d2=nn.Conv2d(128,256,4,2,1)
+        self.conv2d3=nn.Conv2d(256,512,4,2,1)
+        self.conv2d4=nn.Conv2d(512,1024,4,2,1)
+        self.conv2d5=nn.Conv2d(1024,1,1)
+        self.batchnomal1=nn.BatchNorm2d(256)
+        self.batchnomal2 = nn.BatchNorm2d(512)
+        self.batchnomal3 = nn.BatchNorm2d(1024)
 
     def forward(self, x):
         x = self.conv2d1(x)
@@ -151,7 +157,7 @@ def main():
             if count < args.k:
                 continue
             count = 0
-            lossglist.append(loss_G)
+            lossglist.append(loss_G.item())
             # TODO print loss mean
 
             # sample noise minibatch z
@@ -160,15 +166,15 @@ def main():
             # update discriminator by sgd
             loss_D = criterion_D(discriminator.forward(x.to(device)), discriminator.forward(generator.forward(z)))
             loss_D.backward()
-            lossdlist.append(loss_D)
+            lossdlist.append(loss_D.item())
             optimizer_d.step()
             print("e:{} {:2.1f}% loss_D:{} loss_G:{}".format(e,i*args.batchsize*100/len(train_loader.dataset),loss_D,loss_G))
             t=torch.mean(discriminator.forward(x.to(device)))
-            tlist.append(t)
-            f=torch.mean((torch.rand(x.shape).to(device)))
-            flist.append(f)
-            tf=torch.mean(discriminator.forward(generator(torch.rand(x.shape).to(device))))
-            tflist.append(tf)
+            tlist.append(t.item())
+            f=torch.mean(discriminator(torch.rand(xshape)).to(device))
+            flist.append(f.item())
+            tf=torch.mean(discriminator.forward(generator(torch.rand(zshape)).to(device)))
+            tflist.append(tf.item())
             #test
             print("t:",t,"f:",f,"tf",tf)
         if not os.path.exists('output'):
