@@ -169,7 +169,7 @@ def main():
             tlist.append(t.item())
             f=torch.mean(discriminator(torch.rand(xshape).to(device)))
             flist.append(f.item())
-            tf=torch.mean(discriminator.forward(generator(torch.rand(zshape)).to(device)))
+            tf=torch.mean(discriminator.forward(generator(torch.rand(zshape).to(device))))
             tflist.append(tf.item())
             #test
             print("t:",t,"f:",f,"tf",tf)
