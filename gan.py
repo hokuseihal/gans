@@ -211,7 +211,7 @@ def main():
 
             # score
             print("e:%d s:%d | %d/%d loss_D:%4f loss_G:%4f" % (
-                e, s, i * args.batchsize, len(train_loader.dataset.train_data), loss_D, loss_G))
+                e, s, i * args.batchsize, len(train_loader.dataset), loss_D, loss_G))
             t = torch.mean(discriminator(x.to(device))).item()
             tlist.append(t)
             f = torch.mean(discriminator(torch.rand(xshape).to(device))).item()
