@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import torchvision.datasets as dset
 
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
@@ -22,18 +23,60 @@ parse.add_argument('--nocuda', action='store_false', default=True)
 parse.add_argument('--k', type=int, default=5)
 parse.add_argument('--lrg', type=float, default=0.001)
 parse.add_argument('--lrd', type=float, default=0.0001)
-parse.add_argument('--maxstep',type=int,default=100000)
+parse.add_argument('--dataset', help='cifar10 | lsun | mnist |imagenet | folder | lfw | fake', default='mnist')
+parse.add_argument('--dataroot', type=str, default='dataset')
 args = parse.parse_args()
+
+###init
+imagesize = 64
+if args.dataset in ['imagenet', 'folder', 'lfw']:
+    # folder dataset
+    dataset = dset.ImageFolder(root=args.dataroot,
+                               transform=transforms.Compose([
+                                   transforms.Resize(imagesize),
+                                   transforms.CenterCrop(imagesize),
+                                   transforms.ToTensor(),
+                                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                               ]))
+    nc = 3
+elif args.dataset == 'lsun':
+    dataset = dset.LSUN(root=args.dataroot, classes=['bedroom_train'],
+                        transform=transforms.Compose([
+                            transforms.Resize(imagesize),
+                            transforms.CenterCrop(imagesize),
+                            transforms.ToTensor(),
+                            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                        ]))
+    nc = 3
+elif args.dataset == 'cifar10':
+    dataset = dset.CIFAR10(root=args.dataroot, download=True,
+                           transform=transforms.Compose([
+                               transforms.Resize(imagesize),
+                               transforms.ToTensor(),
+                               transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                           ]))
+    nc = 3
+
+elif args.dataset == 'mnist':
+    dataset = dset.MNIST(root=args.dataroot, download=True,
+                         transform=transforms.Compose([
+                             transforms.Resize(imagesize),
+                             transforms.ToTensor(),
+                             transforms.Normalize((0.5,), (0.5,)),
+                         ]))
+    nc = 1
+
 lzsize = 1
 nz = 100
 ngf = 64
 ndf = 64
-nc = 1
 zshape = (args.batchsize, nz, lzsize, lzsize)
-imagesize = 64
 xshape = (args.batchsize, nc, imagesize, imagesize)
+device = 'cuda' if torch.cuda.is_available() and args.nocuda else 'cpu'
 
 
+# classes
+# define errors
 class Dloss(nn.Module):
     def __init__(self):
         super(Dloss, self).__init__()
@@ -51,9 +94,8 @@ class GLoss(nn.Module):
         x = x.view(-1, 1)
         return -torch.mean(torch.log(x))
 
-    # network generator
 
-
+# network of generator
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
@@ -114,57 +156,48 @@ class Discriminator(nn.Module):
         x = self.main(x)
         return x
 
-
-def weights_init(m):
-    classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
-        m.weight.data.normal_(0.0, 0.02)
-    elif classname.find('BatchNorm') != -1:
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.fill_(0)
-
-
 def main():
-    device = 'cuda' if torch.cuda.is_available() and args.nocuda else 'cpu'
     # load data
-    train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('../data', train=True, download=True,
-                       transform=transforms.Compose([
-                           transforms.Resize(imagesize),
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.5,), (0.5,))
-                       ])),
-        batch_size=args.batchsize, shuffle=True)
-
+    train_loader = torch.utils.data.DataLoader(dataset, batch_size=args.batchsize, shuffle=True)
+    # main init
     generator = Generator().to(device)
     discriminator = Discriminator().to(device)
     criterion_D = Dloss()
     criterion_G = GLoss()
     optimizer_g = optim.Adam(generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
     optimizer_d = optim.Adam(discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
-    # train
-    # for epoch
     lossglist = []
     lossdlist = []
     tlist = []
     flist = []
     tflist = []
-    tmark = 0.8
-    tfgmark = 0.8
+    tmark = 0.9
+    tfgmark = 0.9
     s = 0
-    s0=0
-    loss_D=torch.tensor(0)
-    for e in range(args.epoch):
-        count = 0
-        # sample train data x
+    loss_G = torch.tensor(0)
 
+    # train
+    for e in range(args.epoch):
         for i, (x, label) in enumerate(train_loader, 0):
             x = x.to(device)
             tfg = 0
-            t = 0
+
+            # train dicriminator
+            s += 1
+            discriminator.zero_grad()
+            z = torch.rand(zshape).to(device)
+            loss_D = criterion_D(discriminator(x), discriminator(generator(z)))
+            loss_D.backward()
+            optimizer_d.step()
+            t = torch.mean(discriminator(x.to(device))).item()
+            print("lossD:%4f t:%4f" % (loss_D.item(), t))
+            lossglist.append(loss_G.item())
+            lossdlist.append(loss_D.item())
+            if t < tmark: continue
+
+            # train generator
             while tfg < tfgmark:
                 s += 1
-                # update generator
                 generator.zero_grad()
                 z = torch.rand(args.batchsize, nz, 1, 1).to(device)
                 loss_G = criterion_G(discriminator(generator(z)))
@@ -176,22 +209,9 @@ def main():
                 lossglist.append(loss_G.item())
                 lossdlist.append(loss_D.item())
 
-            # update discriminator by sgd
-            # sample noise minibatch z
-            while t < tmark:
-                s += 1
-                discriminator.zero_grad()
-                z = torch.rand(zshape).to(device)
-                loss_D = criterion_D(discriminator(x), discriminator(generator(z)))
-                loss_D.backward()
-                optimizer_d.step()
-                t = torch.mean(discriminator(x.to(device))).item()
-                print("lossD:%4f t:%4f" % (loss_D.item(), t))
-                lossglist.append(loss_G.item())
-                lossdlist.append(loss_D.item())
-
-            print("e:%d s:%d | %d loss_D:%4f loss_G:%4f" % (
-                e, s, len(train_loader.dataset.train_data) / args.batchsize, loss_D, loss_G))
+            # score
+            print("e:%d s:%d | %d/%d loss_D:%4f loss_G:%4f" % (
+                e, s, i * args.batchsize, len(train_loader.dataset.train_data), loss_D, loss_G))
             t = torch.mean(discriminator(x.to(device))).item()
             tlist.append(t)
             f = torch.mean(discriminator(torch.rand(xshape).to(device))).item()
@@ -201,13 +221,13 @@ def main():
             # test
             print("t:%4f f:%4f tf%4f->%4f" % (t, f, tfg, tf))
 
-            if s-s0>100:
-                save_image((generator(torch.rand(1, nz, lzsize, lzsize).to(device))),'output/' + str(s) + '.png')
-                s0=s
-            #stop if nan mearge
-            if loss_G != loss_G: break
-            #stop if over maxstep
-            if args.maxstep<s:break
+            # stop if nan
+            if loss_G != loss_G: exit(1)
+            # save generate images
+            save_image((generator(torch.rand(64, nz, lzsize, lzsize).to(device))).detach(), 'output/' + str(s) + '.png',
+                       normalize=True)
+
+    # draw graph
     fig = plt.figure()
     ax1 = fig.add_subplot(211)
     ax1.plot(range(len(tlist)), tlist, label='t')
@@ -216,7 +236,6 @@ def main():
     ax2 = fig.add_subplot(211)
     ax2.plot(range(len(lossdlist)), lossdlist, label='Loss_D')
     ax2.plot(range(len(lossglist)), lossglist, label='Loss_G')
-
     plt.xlabel('step')
     plt.ylabel('Loss')
     plt.legend()
