@@ -13,6 +13,8 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 
+if not os.path.exists('output'):
+    os.mkdir('output')
 parse = argparse.ArgumentParser('My gan trainnig')
 parse.add_argument('--batchsize', type=int, default=128)
 parse.add_argument('--epoch', type=int, default=50)
@@ -20,6 +22,7 @@ parse.add_argument('--nocuda', action='store_false', default=True)
 parse.add_argument('--k', type=int, default=5)
 parse.add_argument('--lrg', type=float, default=0.001)
 parse.add_argument('--lrd', type=float, default=0.0001)
+parse.add_argument('--maxstep',type=int,default=100000)
 args = parse.parse_args()
 lzsize = 1
 nz = 100
@@ -30,13 +33,15 @@ zshape = (args.batchsize, nz, lzsize, lzsize)
 imagesize = 64
 xshape = (args.batchsize, nc, imagesize, imagesize)
 
+
 class Dloss(nn.Module):
     def __init__(self):
         super(Dloss, self).__init__()
 
-    def forward(self, x,z):
+    def forward(self, x, z):
         x = x.view(-1, 1)
-        return -torch.mean(torch.log(x)+torch.log(1-z))
+        return -torch.mean(torch.log(x) + torch.log(1 - z))
+
 
 class GLoss(nn.Module):
     def __init__(self):
@@ -109,6 +114,7 @@ class Discriminator(nn.Module):
         x = self.main(x)
         return x
 
+
 def weights_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
@@ -116,6 +122,7 @@ def weights_init(m):
     elif classname.find('BatchNorm') != -1:
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
+
 
 def main():
     device = 'cuda' if torch.cuda.is_available() and args.nocuda else 'cpu'
@@ -130,13 +137,11 @@ def main():
         batch_size=args.batchsize, shuffle=True)
 
     generator = Generator().to(device)
-    generator.apply(weights_init)
     discriminator = Discriminator().to(device)
-    discriminator.apply(weights_init)
     criterion_D = Dloss()
     criterion_G = GLoss()
-    optimizer_g = optim.Adam(generator.parameters(),lr=0.0002,betas=(0.5,0.999))
-    optimizer_d = optim.Adam(discriminator.parameters(),lr=0.0002,betas=(0.5,0.999))
+    optimizer_g = optim.Adam(generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
+    optimizer_d = optim.Adam(discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
     # train
     # for epoch
     lossglist = []
@@ -144,46 +149,65 @@ def main():
     tlist = []
     flist = []
     tflist = []
+    tmark = 0.8
+    tfgmark = 0.8
+    s = 0
+    s0=0
+    loss_D=torch.tensor(0)
     for e in range(args.epoch):
-        count=0
+        count = 0
         # sample train data x
 
         for i, (x, label) in enumerate(train_loader, 0):
-
-            # update generator
-            generator.zero_grad()
-            z=torch.rand(args.batchsize, nz,1,1).to(device)
-            loss_G = criterion_G(discriminator(generator(z)))
-            loss_G.backward()
-            optimizer_g.step()
-            lossglist.append(loss_G.item())
-            #if loss_G>0.3:
-            #    print("%4f"%(loss_G.item()))
-            #    continue
+            x = x.to(device)
+            tfg = 0
+            t = 0
+            while tfg < tfgmark:
+                s += 1
+                # update generator
+                generator.zero_grad()
+                z = torch.rand(args.batchsize, nz, 1, 1).to(device)
+                loss_G = criterion_G(discriminator(generator(z)))
+                loss_G.backward()
+                optimizer_g.step()
+                z = torch.rand(args.batchsize, nz, 1, 1).to(device)
+                tfg = torch.mean(discriminator(generator(z))).item()
+                print("lossG:%4f tf:%4f" % (loss_G.item(), tfg))
+                lossglist.append(loss_G.item())
+                lossdlist.append(loss_D.item())
 
             # update discriminator by sgd
             # sample noise minibatch z
-            discriminator.zero_grad()
-            z = torch.rand(args.batchsize, nz,1,1).to(device)*2-1
-            loss_D=criterion_D(discriminator(x),discriminator(generator(z)).detach())
-            loss_D.backward()
-            optimizer_d.step()
-            lossdlist.append(loss_D.item())
+            while t < tmark:
+                s += 1
+                discriminator.zero_grad()
+                z = torch.rand(zshape).to(device)
+                loss_D = criterion_D(discriminator(x), discriminator(generator(z)))
+                loss_D.backward()
+                optimizer_d.step()
+                t = torch.mean(discriminator(x.to(device))).item()
+                print("lossD:%4f t:%4f" % (loss_D.item(), t))
+                lossglist.append(loss_G.item())
+                lossdlist.append(loss_D.item())
 
-            print("e:{} {:2.1f}% loss_D:{} loss_G:{}".format(e, i * args.batchsize * 100 / len(train_loader.dataset),
-                                                             loss_D, loss_G))
-            t = torch.mean(discriminator.forward(x.to(device)))
-            tlist.append(t.item())
-            f = torch.mean(discriminator(torch.rand(xshape).to(device)))
-            flist.append(f.item())
-            tf = torch.mean(discriminator.forward(generator(torch.rand(zshape).to(device))))
-            tflist.append(tf.item())
+            print("e:%d s:%d | %d loss_D:%4f loss_G:%4f" % (
+                e, s, len(train_loader.dataset.train_data) / args.batchsize, loss_D, loss_G))
+            t = torch.mean(discriminator(x.to(device))).item()
+            tlist.append(t)
+            f = torch.mean(discriminator(torch.rand(xshape).to(device))).item()
+            flist.append(f)
+            tf = torch.mean(discriminator(generator(z))).item()
+            tflist.append(tf)
             # test
-            print("t:", t, "f:", f, "tf", tf)
-        if not os.path.exists('output'):
-            os.mkdir('output')
-        save_image((generator(torch.normal(1, 1, lzsize, lzsize).to(device))), 'output/' + str(e) + '.png')
-        if loss_G != loss_G: break
+            print("t:%4f f:%4f tf%4f->%4f" % (t, f, tfg, tf))
+
+            if s-s0>100:
+                save_image((generator(torch.rand(1, nz, lzsize, lzsize).to(device))),'output/' + str(s) + '.png')
+                s0=s
+            #stop if nan mearge
+            if loss_G != loss_G: break
+            #stop if over maxstep
+            if args.maxstep<s:break
     fig = plt.figure()
     ax1 = fig.add_subplot(211)
     ax1.plot(range(len(tlist)), tlist, label='t')
