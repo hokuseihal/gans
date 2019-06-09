@@ -1,21 +1,22 @@
+import argparse
+import datetime
 import os
+
+import matplotlib as mpl
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 import torchvision.datasets as dset
-
-from torchvision import datasets, transforms
+from torchvision import transforms
 from torchvision.utils import save_image
-
-import argparse
-import matplotlib as mpl
 
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 
-if not os.path.exists('output'):
-    os.mkdir('output')
+foldername = str(datetime.datetime.now()) + 'output'
+if not os.path.exists(foldername):
+    os.mkdir(foldername)
+
 parse = argparse.ArgumentParser('My gan trainnig')
 parse.add_argument('--batchsize', type=int, default=128)
 parse.add_argument('--epoch', type=int, default=50)
@@ -224,7 +225,8 @@ def main():
             # stop if nan
             if loss_G != loss_G: exit(1)
             # save generate images
-            save_image((generator(torch.rand(64, nz, lzsize, lzsize).to(device))).detach(), 'output/' + str(s) + '.png',
+            save_image((generator(torch.rand(64, nz, lzsize, lzsize).to(device))).detach(),
+                       foldername + '/' + str(s) + '.png',
                        normalize=True)
 
     # draw graph
@@ -239,7 +241,7 @@ def main():
     plt.xlabel('step')
     plt.ylabel('Loss')
     plt.legend()
-    import datetime
+
     plt.savefig(str(datetime.datetime.now()) + '-loss.png')
 
 
