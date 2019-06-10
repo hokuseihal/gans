@@ -26,6 +26,8 @@ parse.add_argument('--lrg', type=float, default=0.001)
 parse.add_argument('--lrd', type=float, default=0.0001)
 parse.add_argument('--dataset', help='cifar10 | lsun | mnist |imagenet | folder | lfw | fake', default='mnist')
 parse.add_argument('--dataroot', type=str, default='dataset')
+parse.add_argument('--tmark',type=float,default=0.75)
+parse.add_argument('--tfgmark',type=float,default=0.75)
 args = parse.parse_args()
 
 ###init
@@ -172,8 +174,8 @@ def main():
     tlist = []
     flist = []
     tflist = []
-    tmark = 0.9
-    tfgmark = 0.9
+    tmark = args.tmark
+    tfgmark = args.tfgmark
     s = 0
     loss_G = torch.tensor(0)
 
