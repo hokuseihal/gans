@@ -195,7 +195,7 @@ def main():
             lossglist.append(loss_G.item())
             lossdlist.append(loss_D.item())
             if t < tmark: continue
-
+            tf = torch.mean(discriminator(generator(z))).item()
             # train generator
             while tfg < tfgmark:
                 s += 1
@@ -217,7 +217,7 @@ def main():
             tlist.append(t)
             f = torch.mean(discriminator(torch.rand(xshape).to(device))).item()
             flist.append(f)
-            tf = torch.mean(discriminator(generator(z))).item()
+            
             tflist.append(tf)
             # test
             print("t:%4f f:%4f tf%4f->%4f" % (t, f, tfg, tf))
