@@ -232,19 +232,19 @@ def main():
                        normalize=True)
 
     # draw graph
-    fig = plt.figure()
-    ax1 = fig.add_subplot(211)
-    ax1.plot(range(len(tlist)), tlist, label='t')
-    ax1.plot(range(len(flist)), flist, label='f')
-    ax1.plot(range(len(tflist)), tflist, label='tf')
-    ax2 = fig.add_subplot(211)
-    ax2.plot(range(len(lossglist)), lossglist, label='Loss_G')
-    ax2.plot(range(len(lossdlist)), lossdlist, label='Loss_D')
+    #fig = plt.figure()
+    #ax1 = fig.add_subplot(211)
+    #ax1.plot(range(len(tlist)), tlist, label='t')
+    #ax1.plot(range(len(flist)), flist, label='f')
+    #ax1.plot(range(len(tflist)), tflist, label='tf')
+    #ax2 = fig.add_subplot(211)
+    plt.plot(range(len(lossglist)), lossglist, label='Loss_G')
+    plt.plot(range(len(lossdlist)), lossdlist, label='Loss_D')
     plt.xlabel('step')
     plt.ylabel('Loss')
     plt.legend()
 
-    plt.savefig(str(datetime.datetime.now()) + '-loss.png')
+    plt.savefig(foldername+'/'+'loss.png')
 
 
 if __name__ == '__main__':
