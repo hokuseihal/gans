@@ -193,7 +193,7 @@ def main():
             loss_D.backward()
             optimizer_d.step()
             t = torch.mean(discriminator(x.to(device))).item()
-            print("lossD:%4f t:%4f" % (loss_D.item(), t))
+            print("e:%d s:%d | %d/%d lossD:%4f t:%4f" % (e, s, i * args.batchsize, len(train_loader.dataset),loss_D.item(), t))
             lossglist.append(loss_G.item())
             lossdlist.append(loss_D.item())
             if t < tmark: continue
@@ -208,7 +208,7 @@ def main():
                 optimizer_g.step()
                 z = torch.rand(args.batchsize, nz, 1, 1).to(device)
                 tfg = torch.mean(discriminator(generator(z))).item()
-                print("lossG:%4f tf:%4f" % (loss_G.item(), tfg))
+                print("e:%d s:%d | %d/%d lossG:%4f tf:%4f" % (e, s, i * args.batchsize, len(train_loader.dataset),loss_G.item(), tfg))
                 lossglist.append(loss_G.item())
                 lossdlist.append(loss_D.item())
 
